@@ -38,4 +38,4 @@ jobs:
         run: sfdx force:source:convert -r force-app -d ./mdapi-deploy
         
       - name: 'Test source code is deployable'
-        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests --json -c
+        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests -c
