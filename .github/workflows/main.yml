@@ -34,5 +34,8 @@ jobs:
       - name: 'Authenticate to Integration Org'
         run: sfdx auth:sfdxurl:store -f ./SFDX_INTEGRATION_URL.txt -s -a integration
         
-      - name: 'Test source code'
-        run: sfdx force:apex:test:run --targetusername integration --wait 10 --resultformat human --codecoverage --testlevel RunLocalTests --verbose
+      - name: 'Convert source code to mdapi'
+        run: sfdx force:source:convert -r force-app -d ./mdapi-deploy
+        
+      - name: 'Test source code is deployable'
+        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests --json -c
