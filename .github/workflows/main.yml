@@ -39,3 +39,6 @@ jobs:
         
       - name: 'Test source code is deployable'
         run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests -c
+        
+      - name: 'deploy source code'
+        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests
