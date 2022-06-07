@@ -29,6 +29,7 @@ jobs:
   validate-code-deploy-on-test:
     # The type of runner that the job will run on
     runs-on: self-hosted
+    needs: scan-code
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
