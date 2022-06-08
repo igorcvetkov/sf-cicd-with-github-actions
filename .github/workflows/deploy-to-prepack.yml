@@ -1,0 +1,74 @@
+# This is a basic workflow to help you get started with Actions
+
+name: deploy-to-prepack
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "develop" branch
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  scan-code:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Execute Static code analysis"
+        shell: bash
+        run: |
+          sfdx scanner:run -t "./force-app/" -o "sf-code-analyser-result.csv" -f csv
+          sfdx scanner:run -t "./force-app/" -o "copy-paste-detector-result.csv" -f csv --engine cpd
+
+  # This workflow contains a single job called "build"
+  deploy:
+    # The type of runner that the job will run on
+    runs-on: self-hosted
+    needs: scan-code
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Runs a single command using the runners shell
+      - name: "Populate auth file with SFDX URL secret of integration org"
+        shell: bash
+        run: |
+          echo ${{ secrets.SF_TEST_URL}} > ./SFDX_INTEGRATION_URL.txt
+
+      - name: "Authenticate to Integration Org"
+        run: sfdx auth:sfdxurl:store -f ./SFDX_INTEGRATION_URL.txt -s -a integration
+
+      - name: "Convert source code to mdapi"
+        run: sfdx force:source:convert -r force-app -d ./mdapi-deploy
+
+      - name: "Add namespace"
+        run: |
+          sed -i '' "s/c:JUROSettingsOut/juro:JUROSettingsOut/g" forDeploy/pages/JUROSettigsClassic.page
+          sed -i '' "s/c:JUROSettings/juro:JUROSettings/g" forDeploy/pages/JUROSettigsClassic.page
+
+          sed -i '' "s/JUROTemplate__c.JUROTemplateName__c/juro__JUROTemplate__c.juro__JUROTemplateName__c/g" forDeploy/pages/SyncTemplateButtonPage.page
+          sed -i '' "s/JUROTemplate__c.Id/juro__JUROTemplate__c.Id/g" forDeploy/pages/SyncTemplateButtonPage.page
+          sed -i '' "s/c:SyncTemplatesListActionOut/juro:SyncTemplatesListActionOut/g" forDeploy/pages/SyncTemplateButtonPage.page
+          sed -i '' "s/c:SyncTemplatesListAction/juro:SyncTemplatesListAction/g" forDeploy/pages/SyncTemplateButtonPage.page
+
+          sed -i '' "s/c:SyncTemplatesListActionOut/juro:SyncTemplatesListActionOut/g" forDeploy/pages/SyncTemplatesAction.page
+          sed -i '' "s/c:SyncTemplatesListAction/juro:SyncTemplatesListAction/g" forDeploy/pages/SyncTemplatesAction.page
+
+          sed -i '' "s/c:SyncTemplatesListAction/juro:SyncTemplatesListAction/g" forDeploy/aura/SyncTemplatesListActionOut/SyncTemplatesListActionOut.app
+
+          sed -i '' "s/c:JUROSettings/juro:JUROSettings/g" forDeploy/aura/JUROSettingsOut/JUROSettingsOut.app
+
+          sed -i '' "s/TemplateIcons/juro__TemplateIcons/g" forDeploy/objects/JUROTemplate__c.object
+
+      - name: "Test source code is deployable"
+        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests -c
+
+      - name: "Deploy source code"
+        run: sfdx force:mdapi:deploy -u integration --deploydir ./mdapi-deploy --wait 10 --testlevel RunLocalTests
